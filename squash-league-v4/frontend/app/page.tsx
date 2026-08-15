@@ -1,0 +1,5 @@
+const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:8000'
+export default async function Home(){const [s,m,p]=await Promise.all([fetch(API+'/standings',{cache:'no-store'}).then(r=>r.json()),fetch(API+'/matches',{cache:'no-store'}).then(r=>r.json()),fetch(API+'/players',{cache:'no-store'}).then(r=>r.json())]);return <div className="wrap">
+<section className="hero"><small>TEMPORADA 2026/27</small><h1>Squash League</h1><p>Gestión de jugadores, jornadas, resultados, clasificación y ELO.</p></section>
+<div className="cards"><div><small>JUGADORES</small><b>{p.length}</b></div><div><small>PARTIDOS</small><b>{m.length}</b></div><div><small>JUGADOS</small><b>{m.filter((x:any)=>x.status==='played').length}</b></div></div>
+<section className="panel"><h2>Clasificación</h2><table><thead><tr><th>#</th><th>Jugador</th><th>PJ</th><th>PG</th><th>PP</th><th>Sets</th><th>ELO</th><th>Pts</th></tr></thead><tbody>{s.map((x:any,i:number)=><tr key={x.id}><td>{i+1}</td><td><b>{x.name}</b></td><td>{x.played}</td><td>{x.wins}</td><td>{x.losses}</td><td>{x.sets_for}-{x.sets_against}</td><td>{x.elo}</td><td><b>{x.points}</b></td></tr>)}</tbody></table></section></div>}
