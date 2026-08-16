@@ -1,15 +1,97 @@
-'use client'
-import {useEffect,useState} from 'react'
-const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:8000'
-export default function Admin(){
- const [o,setO]=useState<any>(null),[rounds,setRounds]=useState<any[]>([])
- const load=async()=>{const t=localStorage.getItem('squash_token');const h={Authorization:`Bearer ${t}`};
-  const [a,r]=await Promise.all([fetch(API+'/admin/overview',{headers:h}),fetch(API+'/rounds?season_id=1')]);
-  setO(a.ok?await a.json():null);setRounds(await r.json())}
- useEffect(()=>{load()},[])
- async function schedule(id:number){const t=localStorage.getItem('squash_token');await fetch(API+`/rounds/${id}/schedule`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${t}`},body:JSON.stringify({date:'2026-09-20',time:'18:00',court:'Pista 1',deadline:'2026-09-27'})});load()}
- return <div className="wrap"><h1>Administración</h1>
- {o&&<div className="cards"><div><small>JUGADORES</small><b>{o.players}</b></div><div><small>PARTIDOS</small><b>{o.matches}</b></div><div><small>PENDIENTES</small><b>{o.pending}</b></div></div>}
- <section className="panel"><h2>Jornadas</h2>{rounds.map(r=><div className="row" key={r.id}><b>Jornada {r.number}</b><span>{r.scheduled_date||'Sin fecha'} <button onClick={()=>schedule(r.id)}>Programar</button></span></div>)}</section>
- </div>
+'use client';
+
+import { useEffect, useState } from 'react';
+import { apiCallWithAuth, API_ENDPOINTS } from '../utils/api';
+
+interface AdminOverview {
+  seasons: number;
+  players: number;
+  matches: number;
+  played: number;
+  pending: number;
+}
+
+interface Round {
+  id: number;
+  number: number;
+  scheduled_date?: string;
+}
+
+export default function AdminPage() {
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  async function loadAdminData() {
+    const [overviewRes, roundsRes] = await Promise.all([
+      apiCallWithAuth<AdminOverview>(API_ENDPOINTS.ADMIN_OVERVIEW),
+      apiCallWithAuth<Round[]>(API_ENDPOINTS.ROUNDS),
+    ]);
+
+    if (overviewRes.data) setOverview(overviewRes.data);
+    if (roundsRes.data) setRounds(roundsRes.data);
+  }
+
+  async function handleScheduleRound(roundId: number) {
+    setIsLoading(true);
+
+    await apiCallWithAuth(`/rounds/${roundId}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({
+        date: '2026-09-20',
+        time: '18:00',
+        court: 'Pista 1',
+        deadline: '2026-09-27',
+      }),
+    });
+
+    setIsLoading(false);
+    await loadAdminData();
+  }
+
+  return (
+    <div className="wrap">
+      <h1>Administración</h1>
+
+      {overview && (
+        <div className="cards">
+          <div>
+            <small>JUGADORES</small>
+            <b>{overview.players}</b>
+          </div>
+          <div>
+            <small>PARTIDOS</small>
+            <b>{overview.matches}</b>
+          </div>
+          <div>
+            <small>JUGADOS</small>
+            <b>{overview.played}</b>
+          </div>
+          <div>
+            <small>PENDIENTES</small>
+            <b>{overview.pending}</b>
+          </div>
+        </div>
+      )}
+
+      <section className="panel">
+        <h2>Jornadas</h2>
+        {rounds.map((round) => (
+          <div className="row" key={round.id}>
+            <b>Jornada {round.number}</b>
+            <span>
+              {round.scheduled_date || 'Sin fecha'}{' '}
+              <button onClick={() => handleScheduleRound(round.id)} disabled={isLoading}>
+                Programar
+              </button>
+            </span>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
 }

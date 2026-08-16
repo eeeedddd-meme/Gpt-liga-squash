@@ -1,6 +1,76 @@
-'use client'
-import {useEffect,useState} from 'react'
-const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:8000'
-export default function Matches(){const[m,setM]=useState<any[]>([]);const load=()=>fetch(API+'/matches').then(r=>r.json()).then(setM);useEffect(()=>{load()},[])
-async function gen(){const t=localStorage.getItem('squash_token');const r=await fetch(API+'/seasons/1/generate',{method:'POST',headers:{Authorization:`Bearer ${t}`}});const x=await r.json();alert(r.ok?`Calendario: ${x.rounds} jornadas, ${x.matches} partidos`:x.detail);load()}
-return <div className="wrap"><div className="title"><h1>Partidos</h1><button onClick={gen}>Generar calendario</button></div><section className="panel">{m.map(x=><div className="match" key={x.id}><span>J{x.round}</span><b>{x.player_a_name} vs {x.player_b_name}</b><span>{x.status==='played'?`${x.a_sets}-${x.b_sets}`:'Pendiente'}</span></div>)}</section></div>}
+'use client';
+
+import { useEffect, useState } from 'react';
+import { apiCall, apiCallWithAuth, API_ENDPOINTS } from '../utils/api';
+
+interface Match {
+  id: number;
+  round: number;
+  player_a_name: string;
+  player_b_name: string;
+  status: string;
+  a_sets?: number;
+  b_sets?: number;
+}
+
+export default function MatchesPage() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    loadMatches();
+  }, []);
+
+  async function loadMatches() {
+    const result = await apiCall<Match[]>(API_ENDPOINTS.MATCHES);
+    if (result.data) {
+      setMatches(result.data);
+    }
+  }
+
+  async function handleGenerateSchedule() {
+    setIsLoading(true);
+    setMessage('Generando calendario...');
+
+    const result = await apiCallWithAuth<{ rounds: number; matches: number }>(
+      '/seasons/1/generate',
+      { method: 'POST' }
+    );
+
+    if (result.data) {
+      setMessage(`✓ Calendario: ${result.data.rounds} jornadas, ${result.data.matches} partidos`);
+      await loadMatches();
+    } else {
+      setMessage(`✗ ${result.error || 'Error al generar calendario'}`);
+    }
+
+    setIsLoading(false);
+  }
+
+  return (
+    <div className="wrap">
+      <div className="title">
+        <h1>Partidos</h1>
+        <button onClick={handleGenerateSchedule} disabled={isLoading}>
+          {isLoading ? 'Generando...' : 'Generar calendario'}
+        </button>
+      </div>
+      {message && <p>{message}</p>}
+
+      <section className="panel">
+        {matches.map((match) => (
+          <div className="match" key={match.id}>
+            <span>J{match.round}</span>
+            <b>
+              {match.player_a_name} vs {match.player_b_name}
+            </b>
+            <span>
+              {match.status === 'played' ? `${match.a_sets}-${match.b_sets}` : 'Pendiente'}
+            </span>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}

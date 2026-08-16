@@ -1,6 +1,83 @@
-'use client'
-import {useEffect,useState} from 'react'
-const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:8000'
-export default function Players(){const[p,setP]=useState<any[]>([]);const[name,setName]=useState('');const load=()=>fetch(API+'/players').then(r=>r.json()).then(setP);useEffect(()=>{load()},[])
-async function add(e:React.FormEvent){e.preventDefault();const t=localStorage.getItem('squash_token');await fetch(API+'/players',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${t}`},body:JSON.stringify({name})});setName('');load()}
-return <div className="wrap"><h1>Jugadores</h1><section className="panel"><form onSubmit={add}><input placeholder="Nombre" value={name} onChange={e=>setName(e.target.value)} required/><button>Añadir</button></form>{p.map(x=><div className="row" key={x.id}><b>{x.name}</b><span>{x.level} · ELO {x.elo}</span></div>)}</section></div>}
+'use client';
+
+import { useEffect, useState } from 'react';
+import { apiCall, apiCallWithAuth, API_ENDPOINTS } from '../utils/api';
+
+interface Player {
+  id: number;
+  name: string;
+  email?: string;
+  level: string;
+  elo: number;
+}
+
+export default function PlayersPage() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadPlayers();
+  }, []);
+
+  async function loadPlayers() {
+    const result = await apiCall<Player[]>(API_ENDPOINTS.PLAYERS);
+    if (result.data) {
+      setPlayers(result.data);
+    }
+  }
+
+  async function handleAddPlayer(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    const result = await apiCallWithAuth<Player>(API_ENDPOINTS.PLAYERS, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+
+    if (result.data) {
+      setName('');
+      await loadPlayers();
+    } else {
+      setError(result.error || 'Error al añadir jugador');
+    }
+
+    setIsLoading(false);
+  }
+
+  return (
+    <div className="wrap">
+      <h1>Jugadores</h1>
+      <section className="panel">
+        <form onSubmit={handleAddPlayer}>
+          <input
+            type="text"
+            placeholder="Nombre"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? 'Añadiendo...' : 'Añadir'}
+          </button>
+        </form>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+
+        <div>
+          {players.map((player) => (
+            <div className="row" key={player.id}>
+              <b>{player.name}</b>
+              <span>
+                {player.level} · ELO {player.elo}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
