@@ -1,0 +1,1 @@
+"""Squash League API."""
